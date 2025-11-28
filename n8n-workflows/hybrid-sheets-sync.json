@@ -1,0 +1,305 @@
+{
+  "name": "Hybrid Sheets Sync with Supabase",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "sync-appointment",
+        "options": {
+          "responseMode": "lastNode"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        300
+      ],
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "webhookId": "sync-appointment-hybrid"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract appointment ID from webhook payload\nconst payload = $input.item.json;\nconst appointmentId = payload.record?.id || payload.appointment_id;\n\nif (!appointmentId) {\n  throw new Error('No appointment ID provided');\n}\n\nreturn { json: { appointmentId } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "id": "extract-appointment-id",
+      "name": "Extract Appointment ID"
+    },
+    {
+      "parameters": {
+        "url": "https://zslgqpnodzbehuflnbpq.supabase.co/rest/v1/appointments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $json.appointmentId }}"
+            },
+            {
+              "name": "select",
+              "value": "*,clientes(*),doctors(*)"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        300
+      ],
+      "id": "fetch-appointment-supabase",
+      "name": "Fetch from Supabase",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "supabase-auth",
+          "name": "Supabase API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Supabase response and format for Google Sheets\nconst data = $input.item.json[0];\n\nif (!data) {\n  throw new Error('Appointment not found in Supabase');\n}\n\nconst cliente = data.clientes || {};\nconst doctor = data.doctors || {};\n\n// Format date to DD/MM/YYYY\nconst formatDate = (dateStr) => {\n  if (!dateStr) return '';\n  const date = new Date(dateStr);\n  const day = String(date.getDate()).padStart(2, '0');\n  const month = String(date.getMonth() + 1).padStart(2, '0');\n  const year = date.getFullYear();\n  return `${day}/${month}/${year}`;\n};\n\n// Format time to HH:MM\nconst formatTime = (timeStr) => {\n  if (!timeStr) return '';\n  return timeStr.substring(0, 5); // Extract HH:MM\n};\n\n// Get sheet name (MONTH/YEAR)\nconst getSheetName = (dateStr) => {\n  const date = new Date(dateStr);\n  const months = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO',\n                  'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];\n  return `${months[date.getMonth()]}/${date.getFullYear()}`;\n};\n\n// Get day of month (1-31) for column mapping\nconst getDayOfMonth = (dateStr) => {\n  const date = new Date(dateStr);\n  return date.getDate();\n};\n\n// Map time to row (starting at row 3 for 13:00)\nconst getRowFromTime = (timeStr) => {\n  const [hours, minutes] = timeStr.split(':').map(Number);\n  const timeSlots = [\n    { time: '13:00', row: 3 },\n    { time: '13:30', row: 4 },\n    { time: '14:00', row: 5 },\n    { time: '14:30', row: 6 },\n    { time: '15:00', row: 7 },\n    { time: '15:30', row: 8 },\n    { time: '16:00', row: 9 },\n    { time: '16:30', row: 10 },\n    { time: '17:00', row: 11 },\n    { time: '17:30', row: 12 },\n    { time: '18:00', row: 13 },\n    { time: '18:30', row: 14 },\n    { time: '19:00', row: 15 },\n    { time: '19:30', row: 16 },\n    { time: '20:00', row: 17 },\n    { time: '20:30', row: 18 }\n  ];\n  \n  const slot = timeSlots.find(s => s.time === timeStr);\n  return slot ? slot.row : null;\n};\n\n// Get column letter from day (B=1, C=2, etc.)\nconst getColumnFromDay = (day) => {\n  // Column B is day 1, C is day 2, etc.\n  const colIndex = day + 1; // +1 because column A is for time labels\n  return String.fromCharCode(65 + colIndex); // A=65 in ASCII\n};\n\nconst appointmentTime = formatTime(data.appointment_time);\nconst appointmentDate = data.appointment_date;\nconst formattedDate = formatDate(appointmentDate);\nconst sheetName = getSheetName(appointmentDate);\nconst rowNumber = getRowFromTime(appointmentTime);\nconst dayOfMonth = getDayOfMonth(appointmentDate);\nconst columnLetter = getColumnFromDay(dayOfMonth);\nconst cellAddress = `${columnLetter}${rowNumber}`;\n\n// Status to color mapping\nconst statusColors = {\n  'confirmado': { red: 0.8, green: 1, blue: 0.8 },\n  'pendente_confirmacao': { red: 1, green: 1, blue: 0.8 },\n  'cancelado': { red: 1, green: 0.8, blue: 0.8 },\n  'concluido': { red: 0.8, green: 0.8, blue: 1 }\n};\n\nreturn [{\n  json: {\n    // Appointment data\n    appointmentId: data.id,\n    phone: cliente.phone || data.phone,\n    clientName: cliente.name || 'Cliente',\n    procedure: data.procedure,\n    status: data.status,\n    notes: data.notes || '',\n    doctorName: doctor.name || '',\n    doctorColor: doctor.color || '#4A90E2',\n    \n    // Sheet positioning\n    sheetName: sheetName,\n    rowNumber: rowNumber,\n    columnLetter: columnLetter,\n    cellAddress: cellAddress,\n    appointmentTime: appointmentTime,\n    appointmentDate: formattedDate,\n    dayOfMonth: dayOfMonth,\n    \n    // Formatting\n    backgroundColor: statusColors[data.status] || statusColors['pendente_confirmacao'],\n    cellValue: `${cliente.name || 'Cliente'}\\n${data.procedure}`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ],
+      "id": "format-for-sheets",
+      "name": "Format for Matrix Layout"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1OP5bmnODHC30Y5CLM1a3c62dqHOreN0Rp5fJ8lu6GMA",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheetName }}",
+          "mode": "name"
+        },
+        "columnToMatchOn": "={{ $json.columnLetter }}",
+        "valueToMatchOn": "={{ $json.rowNumber }}",
+        "options": {
+          "useAppend": false
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        1120,
+        300
+      ],
+      "id": "read-current-cell",
+      "name": "Read Current Cell",
+      "credentials": {
+        "googleApi": {
+          "id": "google-sheets-cred",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "is-empty-check",
+              "leftValue": "={{ $json[`${$('Format for Matrix Layout').item.json.columnLetter}`] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isEmpty"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        300
+      ],
+      "id": "check-conflict",
+      "name": "Check Slot Availability"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/1OP5bmnODHC30Y5CLM1a3c62dqHOreN0Rp5fJ8lu6GMA:batchUpdate",
+        "authentication": "serviceAccount",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "requests",
+              "value": "={{ [{\n  \"updateCells\": {\n    \"range\": {\n      \"sheetId\": 0,\n      \"startRowIndex\": $('Format for Matrix Layout').item.json.rowNumber - 1,\n      \"endRowIndex\": $('Format for Matrix Layout').item.json.rowNumber,\n      \"startColumnIndex\": $('Format for Matrix Layout').item.json.columnLetter.charCodeAt(0) - 65,\n      \"endColumnIndex\": $('Format for Matrix Layout').item.json.columnLetter.charCodeAt(0) - 64\n    },\n    \"rows\": [{\n      \"values\": [{\n        \"userEnteredValue\": {\n          \"stringValue\": $('Format for Matrix Layout').item.json.cellValue\n        },\n        \"userEnteredFormat\": {\n          \"backgroundColor\": $('Format for Matrix Layout').item.json.backgroundColor,\n          \"horizontalAlignment\": \"CENTER\",\n          \"verticalAlignment\": \"MIDDLE\",\n          \"wrapStrategy\": \"WRAP\",\n          \"textFormat\": {\n            \"fontSize\": 9,\n            \"bold\": true\n          }\n        }\n      }]\n    }],\n    \"fields\": \"userEnteredValue,userEnteredFormat(backgroundColor,horizontalAlignment,verticalAlignment,wrapStrategy,textFormat)\"\n  }\n}] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        180
+      ],
+      "id": "update-cell",
+      "name": "Update Matrix Cell",
+      "credentials": {
+        "googleApi": {
+          "id": "google-sheets-cred",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: false,\n  message: 'Time slot already occupied',\n  conflict: {\n    time: $('Format for Matrix Layout').item.json.appointmentTime,\n    date: $('Format for Matrix Layout').item.json.appointmentDate,\n    occupiedBy: $json[`${$('Format for Matrix Layout').item.json.columnLetter}`],\n    cellAddress: $('Format for Matrix Layout').item.json.cellAddress\n  }\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1560,
+        420
+      ],
+      "id": "respond-conflict",
+      "name": "Respond - Conflict"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  message: 'Appointment synced to Google Sheets',\n  data: {\n    appointmentId: $('Format for Matrix Layout').item.json.appointmentId,\n    client: $('Format for Matrix Layout').item.json.clientName,\n    time: $('Format for Matrix Layout').item.json.appointmentTime,\n    date: $('Format for Matrix Layout').item.json.appointmentDate,\n    cellAddress: $('Format for Matrix Layout').item.json.cellAddress,\n    sheetName: $('Format for Matrix Layout').item.json.sheetName\n  }\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1780,
+        180
+      ],
+      "id": "respond-success",
+      "name": "Respond - Success"
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Appointment ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Appointment ID": {
+      "main": [
+        [
+          {
+            "node": "Fetch from Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch from Supabase": {
+      "main": [
+        [
+          {
+            "node": "Format for Matrix Layout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format for Matrix Layout": {
+      "main": [
+        [
+          {
+            "node": "Read Current Cell",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Current Cell": {
+      "main": [
+        [
+          {
+            "node": "Check Slot Availability",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Slot Availability": {
+      "main": [
+        [
+          {
+            "node": "Update Matrix Cell",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Matrix Cell": {
+      "main": [
+        [
+          {
+            "node": "Respond - Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-10T00:00:00.000Z",
+  "versionId": "1"
+}

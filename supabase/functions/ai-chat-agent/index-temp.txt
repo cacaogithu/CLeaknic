@@ -1,0 +1,30 @@
+### ✔ \`phone\`
+
+Sempre puxar do webhook do Z-API.
+
+### ✔ \`summary\`
+
+Curto (1–2 frases), factual, nunca opinativo.
+Algo como:
+
+> "Paciente relatou queda de cabelo há 6 meses, tentou tônico sem melhora, fechou consulta com Dr. Gabriel."
+
+### ✔ \`appointment_scheduled = true\`
+
+Porque houve agendamento.
+
+### ✔ \`appointment_date\`
+
+Use o horário exato que o cliente escolheu e que veio do Google Calendar.
+
+### ✔ \`handoff_ativo = true\`
+
+Porque a conversa terminou e agora Eliana assume.
+
+### ✔ \`handoff_start_at = agora()\`
+
+Você pode usar timestamp atual ou deixar o modelo preencher.
+
+### ✔ \`doctor_name = "Dr. Gabriel"\`
+
+Bate com sua constraint CHECK no Supabase.

@@ -1,0 +1,158 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Light Premium Theme - EviDenS Clinic (Navy + Gold) */
+    /* Light, clean background for medical professionalism */
+    --background: 30 20% 98%;
+    --foreground: 215 40% 10%;
+
+    /* White cards with subtle warmth */
+    --card: 0 0% 100%;
+    --card-foreground: 215 40% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 40% 10%;
+
+    /* Gold primary accent from EvidenS logo */
+    --primary: 45 80% 58%;
+    --primary-foreground: 215 40% 8%;
+    --primary-hover: 45 85% 65%;
+
+    /* Navy secondary from EvidenS logo */
+    --secondary: 215 40% 15%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-hover: 215 40% 20%;
+
+    --success: 145 60% 50%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 45 100% 52%;
+    --warning-foreground: 215 40% 10%;
+
+    /* Muted grays for secondary text */
+    --muted: 215 20% 92%;
+    --muted-foreground: 215 15% 45%;
+
+    /* Navy accent */
+    --accent: 215 40% 15%;
+    --accent-foreground: 45 80% 70%;
+
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Subtle borders */
+    --border: 215 20% 88%;
+    --input: 215 20% 92%;
+    --ring: 45 80% 58%;
+
+    --radius: 0.75rem;
+
+    /* Chart colors - subtle, sophisticated palette */
+    --chart-1: 45 65% 55%;
+    /* Muted gold */
+    --chart-2: 145 40% 55%;
+    /* Sage green */
+    --chart-3: 215 50% 60%;
+    /* Soft blue */
+    --chart-4: 270 40% 65%;
+    /* Soft lavender */
+    --chart-5: 15 60% 60%;
+    /* Soft coral */
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(45 80% 50%), hsl(45 90% 65%));
+    --gradient-secondary: linear-gradient(135deg, hsl(215 40% 8%), hsl(215 35% 15%));
+    --gradient-card: linear-gradient(to bottom right, hsl(0 0% 100%), hsl(30 20% 98%));
+    --gradient-gold: linear-gradient(135deg, hsl(45 90% 65%), hsl(45 75% 55%), hsl(40 85% 45%));
+
+    /* Softer shadows for light theme */
+    --shadow-sm: 0 1px 2px 0 hsl(215 40% 10% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(215 40% 10% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(215 40% 10% / 0.1);
+    --shadow-gold: 0 4px 16px -4px hsl(45 80% 50% / 0.25);
+    --shadow-gold-lg: 0 8px 24px -6px hsl(45 80% 50% / 0.3);
+
+    /* Sidebar - Navy dark */
+    --sidebar-background: 215 40% 8%;
+    --sidebar-foreground: 45 65% 85%;
+    --sidebar-primary: 45 80% 58%;
+    --sidebar-primary-foreground: 215 40% 8%;
+    --sidebar-accent: 215 35% 15%;
+    --sidebar-accent-foreground: 45 80% 70%;
+    --sidebar-border: 45 30% 20%;
+    --sidebar-ring: 45 80% 58%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-size: 18px; /* Base font size aumentada para melhor legibilidade */
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+
+  /* Fontes maiores para headings */
+  h1 {
+    @apply text-4xl font-bold;
+  }
+
+  h2 {
+    @apply text-3xl font-bold;
+  }
+
+  h3 {
+    @apply text-2xl font-semibold;
+  }
+
+  h4 {
+    @apply text-xl font-semibold;
+  }
+
+  h5 {
+    @apply text-lg font-medium;
+  }
+
+  /* Parágrafos e texto geral com melhor legibilidade */
+  p {
+    @apply text-base leading-relaxed;
+  }
+
+  /* Labels e inputs maiores */
+  label {
+    @apply text-base font-medium;
+  }
+
+  input, textarea, select {
+    @apply text-base;
+  }
+
+  /* Botões com texto maior */
+  button {
+    @apply text-base;
+  }
+
+  /* Tabelas com texto legível */
+  th, td {
+    @apply text-base;
+  }
+
+  /* Lista com espaçamento adequado */
+  li {
+    @apply text-base leading-relaxed;
+  }
+}

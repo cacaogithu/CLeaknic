@@ -1,0 +1,235 @@
+// ============================================
+// CÓDIGO PARA GOOGLE APPS SCRIPT
+// ============================================
+// 1. Abra sua planilha do Google Sheets
+// 2. Vá em Extensions > Apps Script
+// 3. Cole este código e salve
+// 4. Autorize as permissões quando solicitado
+// ============================================
+
+const EDGE_FUNCTION_URL = 'https://zslgqpnodzbehuflnbpq.supabase.co/functions/v1/receive-sheets-update';
+
+// Configuração das colunas (ajuste conforme sua planilha)
+const CONFIG = {
+  // Índices das colunas (começando em 1)
+  DATE_COL: 1,      // Coluna A: Data
+  TIME_COL: 2,      // Coluna B: Hora
+  PATIENT_COL: 3,   // Coluna C: Nome do Paciente
+  PHONE_COL: 4,     // Coluna D: Telefone
+  STATUS_COL: 5,    // Coluna E: Status
+  DOCTOR_COL: 6,    // Coluna F: Médico
+  PROCEDURE_COL: 7, // Coluna G: Procedimento
+  FEEDBACK_COL: 8,  // Coluna H: Feedback
+  ID_COL: 9,        // Coluna I: ID do Agendamento (Oculto)
+  
+  // Linha onde começa os dados (depois do cabeçalho)
+  FIRST_DATA_ROW: 2,
+};
+
+/**
+ * Trigger automático quando a planilha é editada
+ */
+function onEdit(e) {
+  try {
+    const sheet = e.source.getActiveSheet();
+    const row = e.range.getRow();
+    const col = e.range.getColumn();
+    
+    // Ignorar edições no cabeçalho
+    if (row < CONFIG.FIRST_DATA_ROW) {
+      Logger.log('Ignoring header row edit');
+      return;
+    }
+    
+    // Ignorar edições em colunas irrelevantes
+    const relevantCols = [
+      CONFIG.DATE_COL,
+      CONFIG.TIME_COL,
+      CONFIG.PATIENT_COL,
+      CONFIG.PHONE_COL,
+      CONFIG.STATUS_COL,
+      CONFIG.DOCTOR_COL,
+      CONFIG.PROCEDURE_COL
+    ];
+    
+    // Se a edição for na coluna de ID ou Feedback, ignorar para evitar loop
+    if (col === CONFIG.ID_COL || col === CONFIG.FEEDBACK_COL) {
+       return;
+    }
+
+    if (!relevantCols.includes(col)) {
+      Logger.log('Ignoring irrelevant column edit');
+      return;
+    }
+    
+    // 🔄 PREVENT INFINITE LOOP: Ignore STATUS_COL edits
+    // When Supabase updates the sheet, it modifies STATUS_COL
+    // We don't want this to trigger a sync back to Supabase
+    if (col === CONFIG.STATUS_COL) {
+      Logger.log('Ignoring status column edit to prevent sync loop');
+      return;
+    }
+    
+    // Ler os dados da linha editada (agora incluindo até a coluna I)
+    const rowData = sheet.getRange(row, 1, 1, 9).getValues()[0];
+    
+    const update = {
+      date: formatDate(rowData[CONFIG.DATE_COL - 1]),
+      time: formatTime(rowData[CONFIG.TIME_COL - 1]),
+      patientName: String(rowData[CONFIG.PATIENT_COL - 1] || '').trim(),
+      patientPhone: String(rowData[CONFIG.PHONE_COL - 1] || '').trim(),
+      status: String(rowData[CONFIG.STATUS_COL - 1] || 'confirmada').trim(),
+      doctor: String(rowData[CONFIG.DOCTOR_COL - 1] || '').trim(),
+      procedure: String(rowData[CONFIG.PROCEDURE_COL - 1] || '').trim(),
+      appointmentId: String(rowData[CONFIG.ID_COL - 1] || '').trim(), // Ler ID existente
+      sheetName: sheet.getName(),
+      rowNumber: row,
+    };
+    
+    // Validar dados essenciais
+    if (!update.date || !update.time || !update.patientPhone || !update.doctor) {
+      Logger.log('Missing required fields, skipping: ' + JSON.stringify(update));
+      return;
+    }
+    
+    Logger.log('Sending update: ' + JSON.stringify(update));
+    
+    // Enviar para Edge Function
+    const response = UrlFetchApp.fetch(EDGE_FUNCTION_URL, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(update),
+      muteHttpExceptions: true,
+    });
+    
+    const result = JSON.parse(response.getContentText());
+    
+    if (result.success) {
+      Logger.log('✅ Success: ' + result.action + ' - Appointment ID: ' + result.appointmentId);
+      
+      // Atualizar ID na planilha se não existir ou mudou
+      if (result.appointmentId && result.appointmentId !== update.appointmentId) {
+         sheet.getRange(row, CONFIG.ID_COL).setValue(result.appointmentId);
+      }
+
+      // Opcional: Adicionar feedback visual na planilha
+      const feedbackCell = sheet.getRange(row, CONFIG.FEEDBACK_COL); 
+      feedbackCell.setValue('✅ Sincronizado');
+      feedbackCell.setBackground('#d4edda');
+      
+      // Limpar feedback após 3 segundos
+      Utilities.sleep(3000);
+      feedbackCell.setValue('');
+      feedbackCell.setBackground(null);
+    } else {
+      Logger.log('❌ Error: ' + result.error);
+      
+      // Mostrar erro na planilha
+      const feedbackCell = sheet.getRange(row, CONFIG.FEEDBACK_COL);
+      feedbackCell.setValue('❌ ' + result.error);
+      feedbackCell.setBackground('#f8d7da');
+    }
+    
+  } catch (error) {
+    Logger.log('❌ Exception: ' + error.toString());
+    
+    // Mostrar erro na planilha
+    try {
+      const sheet = e.source.getActiveSheet();
+      const row = e.range.getRow();
+      const feedbackCell = sheet.getRange(row, 8);
+      feedbackCell.setValue('❌ Erro de conexão');
+      feedbackCell.setBackground('#f8d7da');
+    } catch (e2) {
+      Logger.log('Failed to show error in sheet: ' + e2.toString());
+    }
+  }
+}
+
+/**
+ * Formata data para YYYY-MM-DD
+ */
+function formatDate(value) {
+  if (!value) return null;
+  
+  let date;
+  if (value instanceof Date) {
+    date = value;
+  } else {
+    // Tentar parsear string (DD/MM/YYYY ou DD-MM-YYYY)
+    const dateStr = String(value).trim();
+    const parts = dateStr.split(/[/-]/);
+    if (parts.length === 3) {
+      date = new Date(parts[2], parts[1] - 1, parts[0]); // ano, mês, dia
+    } else {
+      return null;
+    }
+  }
+  
+  if (isNaN(date.getTime())) return null;
+  
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Formata hora para HH:MM
+ */
+function formatTime(value) {
+  if (!value) return null;
+  
+  if (value instanceof Date) {
+    const hours = String(value.getHours()).padStart(2, '0');
+    const minutes = String(value.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+  
+  // Se for string, tentar limpar e formatar
+  const timeStr = String(value).trim();
+  const match = timeStr.match(/(\d{1,2}):?(\d{2})/);
+  
+  if (match) {
+    const hours = String(match[1]).padStart(2, '0');
+    const minutes = String(match[2]).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+  
+  return null;
+}
+
+/**
+ * Função de teste manual (útil para debugging)
+ * Execute esta função para testar sem editar a planilha
+ */
+function testSync() {
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const row = 2; // Testar linha 2
+  
+  const rowData = sheet.getRange(row, 1, 1, 7).getValues()[0];
+  
+  const update = {
+    date: formatDate(rowData[CONFIG.DATE_COL - 1]),
+    time: formatTime(rowData[CONFIG.TIME_COL - 1]),
+    patientName: String(rowData[CONFIG.PATIENT_COL - 1] || '').trim(),
+    patientPhone: String(rowData[CONFIG.PHONE_COL - 1] || '').trim(),
+    status: String(rowData[CONFIG.STATUS_COL - 1] || 'confirmada').trim(),
+    doctor: String(rowData[CONFIG.DOCTOR_COL - 1] || '').trim(),
+    procedure: String(rowData[CONFIG.PROCEDURE_COL - 1] || '').trim(),
+    sheetName: sheet.getName(),
+    rowNumber: row,
+  };
+  
+  Logger.log('Test update: ' + JSON.stringify(update));
+  
+  const response = UrlFetchApp.fetch(EDGE_FUNCTION_URL, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(update),
+    muteHttpExceptions: true,
+  });
+  
+  Logger.log('Response: ' + response.getContentText());
+}

@@ -1,0 +1,415 @@
+// ============================================
+// GOOGLE APPS SCRIPT COM GEMINI AI
+// Analisa estrutura dinâmica da planilha
+// ============================================
+// 1. Abra sua planilha do Google Sheets
+// 2. Vá em Extensions > Apps Script
+// 3. Cole este código e salve
+// 4. Configure GEMINI_API_KEY em Project Settings > Script Properties
+// 5. Deploy como Web App (Anyone with the link)
+// ============================================
+
+const GEMINI_API_KEY = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+
+/**
+ * Recebe webhook do Supabase com dados do appointment
+ */
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    Logger.log('Received data: ' + JSON.stringify(data));
+    
+    // Validar dados essenciais
+    if (!data.appointmentDate || !data.appointmentTime || !data.doctor) {
+      return createResponse(400, { 
+        success: false, 
+        error: 'Missing required fields: appointmentDate, appointmentTime, doctor' 
+      });
+    }
+    
+    const result = syncAppointmentToSheet(data);
+    return createResponse(200, result);
+    
+  } catch (error) {
+    Logger.log('Error in doPost: ' + error.toString());
+    return createResponse(500, { 
+      success: false, 
+      error: error.toString() 
+    });
+  }
+}
+
+/**
+ * Sincroniza appointment para a planilha usando Gemini AI
+ */
+function syncAppointmentToSheet(appointmentData) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetName = getSheetNameForDate(appointmentData.appointmentDate);
+  let sheet = ss.getSheetByName(sheetName);
+  
+  // Se a sheet não existir, criar ou usar a primeira
+  if (!sheet) {
+    Logger.log(`Sheet ${sheetName} not found, using first sheet`);
+    sheet = ss.getSheets()[0];
+  }
+  
+  Logger.log(`Using sheet: ${sheet.getName()}`);
+  
+  // Ler estrutura atual da planilha
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  const sheetData = sheet.getRange(1, 1, Math.min(lastRow, 50), Math.min(lastCol, 30)).getValues();
+  
+  // Usar Gemini AI para analisar estrutura e encontrar célula
+  const cellLocation = findCellWithAI(sheetData, appointmentData);
+  
+  if (!cellLocation.success) {
+    return {
+      success: false,
+      error: cellLocation.error,
+      sheetName: sheet.getName()
+    };
+  }
+  
+  // Verificar se célula está vazia
+  const targetCell = sheet.getRange(cellLocation.row, cellLocation.col);
+  const currentValue = targetCell.getValue();
+  
+  if (currentValue && currentValue.toString().trim() !== '') {
+    return {
+      success: false,
+      error: 'Slot ocupado',
+      occupiedBy: currentValue,
+      cell: targetCell.getA1Notation(),
+      sheetName: sheet.getName()
+    };
+  }
+  
+  // Escrever appointment na célula
+  const appointmentText = formatAppointmentText(appointmentData);
+  targetCell.setValue(appointmentText);
+  
+  // Aplicar formatação baseada no status
+  applyStatusFormatting(targetCell, appointmentData.status);
+  
+  Logger.log(`✅ Appointment written to ${targetCell.getA1Notation()}`);
+  
+  return {
+    success: true,
+    cell: targetCell.getA1Notation(),
+    sheetName: sheet.getName(),
+    appointmentText: appointmentText,
+    row: cellLocation.row,
+    col: cellLocation.col
+  };
+}
+
+/**
+ * Usa Gemini AI para analisar estrutura da planilha e encontrar célula correta
+ */
+function findCellWithAI(sheetData, appointmentData) {
+  if (!GEMINI_API_KEY) {
+    Logger.log('⚠️ GEMINI_API_KEY not configured, using fallback logic');
+    return findCellFallback(sheetData, appointmentData);
+  }
+  
+  try {
+    // Preparar contexto da planilha para o AI
+    const sheetContext = prepareSheetContext(sheetData);
+    
+    const prompt = `Você é um assistente que analisa planilhas do Google Sheets para encontrar a célula correta para inserir um agendamento.
+
+ESTRUTURA DA PLANILHA:
+${sheetContext}
+
+DADOS DO AGENDAMENTO:
+- Data: ${appointmentData.appointmentDate} (formato pode variar: YYYY-MM-DD, DD/MM/YYYY, etc)
+- Hora: ${appointmentData.appointmentTime} (formato: HH:MM)
+- Médico: ${appointmentData.doctor}
+- Paciente: ${appointmentData.name || 'N/A'}
+- Procedimento: ${appointmentData.procedure || 'N/A'}
+
+INSTRUÇÕES:
+1. Analise a estrutura da planilha para entender o layout
+2. Identifique como as datas estão organizadas (colunas por dia da semana)
+3. Identifique como os horários estão organizados (linhas por horário)
+4. Encontre a célula (linha e coluna) onde o agendamento deve ser inserido
+5. Considere que:
+   - As colunas representam dias da semana (Segunda=B ou coluna após A, Terça, Quarta, Quinta, Sexta, Sábado)
+   - As linhas representam horários (ex: row 3 = 13:00, row 19 = 21:00)
+   - Pode haver blocos repetidos no mesmo sheet (ex: B3-E19 é primeira semana, B21-E37 é segunda semana)
+   - Estrutura pode variar entre sheets
+
+RESPONDA APENAS COM JSON (sem markdown, sem explicações):
+{
+  "row": <número da linha>,
+  "col": <número da coluna>,
+  "confidence": <0-100>,
+  "reasoning": "<breve explicação da sua decisão>"
+}`;
+
+    const response = UrlFetchApp.fetch(GEMINI_API_URL + '?key=' + GEMINI_API_KEY, {
+      method: 'post',
+      contentType: 'application/json',
+      muteHttpExceptions: true,
+      payload: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 500
+        }
+      })
+    });
+    
+    const result = JSON.parse(response.getContentText());
+    Logger.log('Gemini API Response: ' + JSON.stringify(result));
+    
+    if (!result.candidates || !result.candidates[0]) {
+      throw new Error('Invalid Gemini API response');
+    }
+    
+    const aiText = result.candidates[0].content.parts[0].text;
+    Logger.log('AI Text: ' + aiText);
+    
+    // Extrair JSON da resposta (remover markdown se houver)
+    const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Could not extract JSON from AI response');
+    }
+    
+    const cellLocation = JSON.parse(jsonMatch[0]);
+    
+    // Validar resposta
+    if (!cellLocation.row || !cellLocation.col) {
+      throw new Error('Invalid cell location from AI');
+    }
+    
+    if (cellLocation.confidence < 50) {
+      Logger.log('⚠️ Low confidence from AI, using fallback');
+      return findCellFallback(sheetData, appointmentData);
+    }
+    
+    Logger.log(`✅ AI found cell: Row ${cellLocation.row}, Col ${cellLocation.col} (Confidence: ${cellLocation.confidence}%)`);
+    Logger.log(`Reasoning: ${cellLocation.reasoning}`);
+    
+    return {
+      success: true,
+      row: cellLocation.row,
+      col: cellLocation.col,
+      confidence: cellLocation.confidence,
+      reasoning: cellLocation.reasoning,
+      method: 'gemini-ai'
+    };
+    
+  } catch (error) {
+    Logger.log('❌ AI Error: ' + error.toString());
+    Logger.log('Falling back to rule-based logic');
+    return findCellFallback(sheetData, appointmentData);
+  }
+}
+
+/**
+ * Prepara contexto da planilha para o AI (primeiras 30 linhas e colunas)
+ */
+function prepareSheetContext(sheetData) {
+  let context = '';
+  
+  for (let i = 0; i < Math.min(sheetData.length, 30); i++) {
+    const row = sheetData[i];
+    const rowNum = i + 1;
+    const rowValues = row.slice(0, 30).map(cell => {
+      if (cell === null || cell === undefined || cell === '') return '""';
+      return `"${String(cell).substring(0, 50)}"`;
+    }).join(', ');
+    
+    context += `Row ${rowNum}: [${rowValues}]\n`;
+  }
+  
+  return context;
+}
+
+/**
+ * Lógica de fallback caso AI não funcione
+ */
+function findCellFallback(sheetData, appointmentData) {
+  Logger.log('Using fallback logic to find cell');
+  
+  try {
+    // Mapear dia da semana para coluna
+    const dayOfWeek = getDayOfWeek(appointmentData.appointmentDate);
+    const dayToCol = {
+      'Segunda': 2,  // B
+      'Terça': 7,    // G
+      'Quarta': 12,  // L
+      'Quinta': 17,  // Q
+      'Sexta': 22,   // V
+      'Sábado': 27   // AA
+    };
+    
+    const col = dayToCol[dayOfWeek];
+    if (!col) {
+      return {
+        success: false,
+        error: `Dia da semana não suportado: ${dayOfWeek}`
+      };
+    }
+    
+    // Encontrar linha baseada no horário
+    const time = appointmentData.appointmentTime;
+    const row = findRowByTime(sheetData, time);
+    
+    if (!row) {
+      return {
+        success: false,
+        error: `Horário não encontrado na planilha: ${time}`
+      };
+    }
+    
+    Logger.log(`Fallback found: Row ${row}, Col ${col}`);
+    
+    return {
+      success: true,
+      row: row,
+      col: col,
+      method: 'fallback'
+    };
+    
+  } catch (error) {
+    return {
+      success: false,
+      error: error.toString()
+    };
+  }
+}
+
+/**
+ * Encontra linha baseada no horário procurando na primeira coluna
+ */
+function findRowByTime(sheetData, targetTime) {
+  // Normalizar horário (remover segundos se houver)
+  const normalizedTarget = targetTime.substring(0, 5); // "HH:MM"
+  
+  for (let i = 0; i < sheetData.length; i++) {
+    const cellValue = String(sheetData[i][0] || ''); // Coluna A
+    
+    // Tentar encontrar horário em diferentes formatos
+    if (cellValue.includes(normalizedTarget) || 
+        cellValue.includes(targetTime) ||
+        cellValue === normalizedTarget) {
+      return i + 1; // +1 porque arrays são 0-indexed
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Obter dia da semana de uma data
+ */
+function getDayOfWeek(dateStr) {
+  let date;
+  
+  // Tentar diferentes formatos
+  if (dateStr.includes('-')) {
+    // YYYY-MM-DD
+    date = new Date(dateStr);
+  } else if (dateStr.includes('/')) {
+    // DD/MM/YYYY
+    const parts = dateStr.split('/');
+    date = new Date(parts[2], parts[1] - 1, parts[0]);
+  } else {
+    date = new Date(dateStr);
+  }
+  
+  const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  return days[date.getDay()];
+}
+
+/**
+ * Obter nome da sheet baseado na data (MÊS/ANO)
+ */
+function getSheetNameForDate(dateStr) {
+  let date;
+  
+  if (dateStr.includes('-')) {
+    date = new Date(dateStr);
+  } else if (dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    date = new Date(parts[2], parts[1] - 1, parts[0]);
+  } else {
+    date = new Date(dateStr);
+  }
+  
+  const months = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO',
+                  'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+  
+  return `${months[date.getMonth()]}/${date.getFullYear()}`;
+}
+
+/**
+ * Formatar texto do appointment
+ */
+function formatAppointmentText(data) {
+  const parts = [];
+  
+  if (data.name) parts.push(data.name);
+  if (data.procedure) parts.push(data.procedure);
+  if (data.phone) parts.push(data.phone);
+  
+  return parts.join('\n');
+}
+
+/**
+ * Aplicar formatação baseada no status
+ */
+function applyStatusFormatting(cell, status) {
+  const statusColors = {
+    'pendente_confirmacao': '#fb923c',
+    'confirmada_paciente': '#10b981',
+    'confirmada': '#10b981',
+    'cancelada_paciente': '#ef4444',
+    'cancelada': '#ef4444',
+    'completed': '#3b82f6'
+  };
+  
+  const color = statusColors[status] || '#e5e7eb';
+  
+  cell.setBackground(color);
+  cell.setFontColor('#ffffff');
+  cell.setFontWeight('bold');
+  cell.setVerticalAlignment('middle');
+  cell.setHorizontalAlignment('center');
+  cell.setWrap(true);
+}
+
+/**
+ * Criar resposta HTTP
+ */
+function createResponse(statusCode, body) {
+  return ContentService
+    .createTextOutput(JSON.stringify(body))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Função de teste manual
+ */
+function testSync() {
+  const testData = {
+    appointmentDate: '2025-11-25',
+    appointmentTime: '14:00',
+    doctor: 'Dr. Gabriel',
+    name: 'João Silva',
+    procedure: 'Consulta',
+    phone: '5511999999999',
+    status: 'confirmada_paciente'
+  };
+  
+  const result = syncAppointmentToSheet(testData);
+  Logger.log('Test Result: ' + JSON.stringify(result));
+}
