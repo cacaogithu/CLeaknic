@@ -10,17 +10,17 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
       {/* Navigation */}
-      <nav className="fixed top-0 w-full bg-white/80 backdrop-blur-md z-50 border-b">
+      <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-md z-50 border-b border-gray-100 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+          <div className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
             Cacao AI Clinics
           </div>
           <div className="flex gap-4">
-            <Button variant="ghost" onClick={() => setShowCalculator(true)}>
+            <Button variant="ghost" onClick={() => setShowCalculator(true)} className="hover:bg-emerald-50">
               <Calculator className="mr-2 h-4 w-4" />
               Calculadora
             </Button>
-            <Button asChild>
+            <Button asChild className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700">
               <a href="#audit">Agendar Auditoria</a>
             </Button>
           </div>
@@ -30,9 +30,9 @@ export default function Landing() {
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-4">
         <div className="container mx-auto text-center max-w-4xl">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight text-gray-900">
             Transforme o Caos do WhatsApp em{' '}
-            <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
               Tratamentos de Alto Valor Agendados
             </span>
           </h1>
@@ -42,13 +42,13 @@ export default function Landing() {
             que dizem "vou pensar".
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="text-lg px-8 py-6" asChild>
+            <Button size="lg" className="text-lg px-8 py-6 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 shadow-lg hover:shadow-xl transition-all" asChild>
               <a href="#audit">
                 Agende sua Auditoria de Receita WhatsApp (30 min)
                 <ArrowRight className="ml-2 h-5 w-5" />
               </a>
             </Button>
-            <Button size="lg" variant="outline" className="text-lg px-8 py-6" onClick={() => setShowCalculator(true)}>
+            <Button size="lg" variant="outline" className="text-lg px-8 py-6 border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50" onClick={() => setShowCalculator(true)}>
               <Calculator className="mr-2 h-5 w-5" />
               Veja Como Funciona
             </Button>
@@ -139,15 +139,15 @@ export default function Landing() {
             </p>
             <div className="grid md:grid-cols-4 gap-4 mb-6">
               <div className="text-center">
-                <div className="text-3xl font-bold text-purple-600">100-200</div>
+                <div className="text-3xl font-bold text-emerald-600">100-200</div>
                 <div className="text-sm text-gray-600">Leads WhatsApp/mês</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-purple-600">20-30%</div>
+                <div className="text-3xl font-bold text-emerald-600">20-30%</div>
                 <div className="text-sm text-gray-600">Taxa de no-show</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-purple-600">R$1.500-3.000</div>
+                <div className="text-3xl font-bold text-emerald-600">R$1.500-3.000</div>
                 <div className="text-sm text-gray-600">Ticket médio</div>
               </div>
               <div className="text-center">
@@ -156,7 +156,7 @@ export default function Landing() {
               </div>
             </div>
             <div className="text-center">
-              <Button size="lg" onClick={() => setShowCalculator(true)} className="bg-gradient-to-r from-purple-600 to-pink-600">
+              <Button size="lg" onClick={() => setShowCalculator(true)} className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 shadow-lg">
                 <Calculator className="mr-2 h-5 w-5" />
                 Calcule Sua Perda Exata
               </Button>
@@ -176,10 +176,10 @@ export default function Landing() {
           </p>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="border-2 hover:border-purple-300 transition-all">
+            <Card className="border-2 hover:border-emerald-300 transition-all hover:shadow-lg">
               <CardContent className="p-6">
-                <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                  <TrendingUp className="h-6 w-6 text-purple-600" />
+                <div className="h-12 w-12 bg-emerald-100 rounded-lg flex items-center justify-center mb-4">
+                  <TrendingUp className="h-6 w-6 text-emerald-600" />
                 </div>
                 <h3 className="text-xl font-bold mb-3">Transforma mais novos leads em consultas agendadas</h3>
                 <ul className="space-y-2 text-gray-600">
@@ -195,10 +195,10 @@ export default function Landing() {
               </CardContent>
             </Card>
 
-            <Card className="border-2 hover:border-purple-300 transition-all">
+            <Card className="border-2 hover:border-emerald-300 transition-all hover:shadow-lg">
               <CardContent className="p-6">
-                <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                  <Calendar className="h-6 w-6 text-purple-600" />
+                <div className="h-12 w-12 bg-emerald-100 rounded-lg flex items-center justify-center mb-4">
+                  <Calendar className="h-6 w-6 text-emerald-600" />
                 </div>
                 <h3 className="text-xl font-bold mb-3">Reduz no-shows e cancelamentos</h3>
                 <ul className="space-y-2 text-gray-600">
@@ -214,10 +214,10 @@ export default function Landing() {
               </CardContent>
             </Card>
 
-            <Card className="border-2 hover:border-purple-300 transition-all">
+            <Card className="border-2 hover:border-emerald-300 transition-all hover:shadow-lg">
               <CardContent className="p-6">
-                <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                  <MessageSquare className="h-6 w-6 text-purple-600" />
+                <div className="h-12 w-12 bg-emerald-100 rounded-lg flex items-center justify-center mb-4">
+                  <MessageSquare className="h-6 w-6 text-emerald-600" />
                 </div>
                 <h3 className="text-xl font-bold mb-3">Fecha mais consultas recentes e orçamentos abertos (0-90 dias)</h3>
                 <ul className="space-y-2 text-gray-600">
@@ -234,9 +234,9 @@ export default function Landing() {
             </Card>
           </div>
 
-          <div className="mt-12 text-center bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-8">
+          <div className="mt-12 text-center bg-gradient-to-r from-emerald-50 to-green-50 rounded-2xl p-8">
             <p className="text-xl font-semibold mb-2">Nossa tecnologia parece uma plataforma de software.</p>
-            <p className="text-xl font-semibold text-purple-600">
+            <p className="text-xl font-semibold text-emerald-600">
               Nosso serviço parece contratar uma recepcionista e equipe de follow-up de classe mundial que nunca esquece.
             </p>
           </div>
@@ -244,10 +244,10 @@ export default function Landing() {
       </section>
 
       {/* Founding Clinics Program */}
-      <section className="py-20 px-4 bg-gradient-to-br from-purple-50 to-pink-50">
+      <section className="py-20 px-4 bg-gradient-to-br from-emerald-50 to-green-50">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
-            <div className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-full font-semibold mb-4">
+            <div className="inline-block bg-gradient-to-r from-emerald-600 to-green-600 text-white px-6 py-2 rounded-full font-semibold mb-4">
               Programa Clínicas Fundadoras (Apenas as Primeiras 10)
             </div>
             <h2 className="text-4xl font-bold mb-4">O Que Você Recebe Como Clínica Fundadora</h2>
@@ -280,7 +280,7 @@ export default function Landing() {
                 description: 'Importamos seus leads existentes, personalizamos scripts no seu tom e treinamos sua equipe.'
               }
             ].map((feature, index) => (
-              <Card key={index} className="border-2 border-purple-200">
+              <Card key={index} className="border-2 border-emerald-200">
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
                     <div className="h-8 w-8 bg-purple-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
@@ -307,13 +307,13 @@ export default function Landing() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
-            <Card className="border-2 border-purple-300 relative overflow-hidden">
-              <div className="absolute top-0 right-0 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-1 text-sm font-semibold">
+            <Card className="border-2 border-emerald-300 relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-gradient-to-r from-emerald-600 to-green-600 text-white px-4 py-1 text-sm font-semibold">
                 Clínicas 1-3
               </div>
               <CardContent className="p-8">
                 <div className="text-center mb-6">
-                  <div className="text-5xl font-bold text-purple-600 mb-2">R$ 1.500</div>
+                  <div className="text-5xl font-bold text-emerald-600 mb-2">R$ 1.500</div>
                   <div className="text-gray-600">/mês (bloqueado para sempre)</div>
                 </div>
                 <div className="space-y-3">
@@ -333,13 +333,13 @@ export default function Landing() {
               </CardContent>
             </Card>
 
-            <Card className="border-2 border-purple-300 relative overflow-hidden">
-              <div className="absolute top-0 right-0 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-1 text-sm font-semibold">
+            <Card className="border-2 border-emerald-300 relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-gradient-to-r from-emerald-600 to-green-600 text-white px-4 py-1 text-sm font-semibold">
                 Clínicas 4-10
               </div>
               <CardContent className="p-8">
                 <div className="text-center mb-6">
-                  <div className="text-5xl font-bold text-purple-600 mb-2">R$ 2.000</div>
+                  <div className="text-5xl font-bold text-emerald-600 mb-2">R$ 2.000</div>
                   <div className="text-gray-600">/mês (bloqueado para sempre)</div>
                 </div>
                 <div className="space-y-3">
@@ -362,7 +362,7 @@ export default function Landing() {
 
           <div className="mt-8 text-center">
             <p className="text-gray-600 mb-6">Clínicas futuras começarão com preços mais altos.</p>
-            <Button size="lg" className="bg-gradient-to-r from-purple-600 to-pink-600 text-lg px-8 py-6" asChild>
+            <Button size="lg" className="bg-gradient-to-r from-emerald-600 to-green-600 text-lg px-8 py-6" asChild>
               <a href="#audit">
                 Candidate-se para Ser uma Clínica Fundadora
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -439,9 +439,9 @@ export default function Landing() {
                 description: 'Ajustamos conversas e follow-ups baseados em leads reais, depois reportamos resultados.'
               }
             ].map((item, index) => (
-              <Card key={index} className="border-2 hover:border-purple-300 transition-all">
+              <Card key={index} className="border-2 hover:border-emerald-300 transition-all">
                 <CardContent className="p-6 text-center">
-                  <div className="h-16 w-16 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+                  <div className="h-16 w-16 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
                     {item.step}
                   </div>
                   <h3 className="text-xl font-bold mb-3">{item.title}</h3>
@@ -503,7 +503,7 @@ export default function Landing() {
       </section>
 
       {/* Final CTA */}
-      <section id="audit" className="py-20 px-4 bg-gradient-to-br from-purple-600 to-pink-600 text-white">
+      <section id="audit" className="py-20 px-4 bg-gradient-to-br from-emerald-600 to-green-600 text-white">
         <div className="container mx-auto max-w-4xl text-center">
           <h2 className="text-4xl font-bold mb-6">
             Quer Ver Quanto de Receita Você Está Deixando no WhatsApp?
@@ -513,7 +513,7 @@ export default function Landing() {
             o Cacao AI Clinics poderia desbloquear na sua clínica nos próximos 90 dias.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-100 text-lg px-8 py-6">
+            <Button size="lg" className="bg-white text-emerald-600 hover:bg-gray-100 text-lg px-8 py-6">
               <Calendar className="mr-2 h-5 w-5" />
               Agendar Minha Auditoria
             </Button>

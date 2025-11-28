@@ -188,7 +188,7 @@ export default function RevenueCalculator({ onClose }: { onClose?: () => void })
               )}
               <Button 
                 onClick={() => setStep(2)} 
-                className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600"
+                className="flex-1 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
                 disabled={!formData.clinicName || !formData.contactEmail || formData.monthlyLeads === 0}
               >
                 Calcular Minha Perda
@@ -241,7 +241,7 @@ export default function RevenueCalculator({ onClose }: { onClose?: () => void })
               </Button>
               <Button 
                 onClick={calculateResults} 
-                className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600"
+                className="flex-1 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
                 disabled={loading}
               >
                 {loading ? (
@@ -308,7 +308,7 @@ export default function RevenueCalculator({ onClose }: { onClose?: () => void })
               <p className="text-gray-600 mb-3">
                 Com o Cacao AI Clinics, recuperando apenas 30-40% desses vazamentos, sua clínica pode adicionar:
               </p>
-              <p className="text-3xl font-bold text-green-600 mb-2">
+              <p className="text-3xl font-bold text-emerald-600 mb-2">
                 {formatCurrency(results.recoverablePotential)}/mês
               </p>
               <p className="font-semibold">
@@ -326,7 +326,7 @@ export default function RevenueCalculator({ onClose }: { onClose?: () => void })
             <div className="flex flex-col gap-3">
               <Button 
                 onClick={downloadReport}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600"
+                className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
               >
                 <Download className="mr-2 h-4 w-4" />
                 Baixar Relatório Completo
